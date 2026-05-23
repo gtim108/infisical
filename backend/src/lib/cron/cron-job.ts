@@ -31,7 +31,8 @@ export const CronJobName = {
   DigiCertOrderPolling: "digicert-order-polling",
   ProjectEnvHardDelete: "project-env-hard-delete",
   DigiCertRevocationSync: "digicert-revocation-sync",
-  CaCrlRotation: "ca-crl-rotation"
+  CaCrlRotation: "ca-crl-rotation",
+  AuditLogStreamOutboxStaleClaimSweeper: "audit-log-stream-outbox-stale-claim-sweeper"
 } as const;
 
 // ── tuning constants ──────────────────────────────────────────────────────────

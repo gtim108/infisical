@@ -885,8 +885,9 @@ export const registerRoutes = async (
       auditLogStreamService.recordStreamFailure(orgId, streamId, provider, errorMessage)
   });
 
-  auditLogStreamOutboxQueueFactory({
+  const auditLogStreamOutboxQueue = auditLogStreamOutboxQueueFactory({
     queueService,
+    cronJob,
     auditLogStreamOutboxService
   });
 
@@ -3438,6 +3439,7 @@ export const registerRoutes = async (
   dailyResourceCleanUp.init();
   projectEnvQueue.init();
   healthAlert.init();
+  auditLogStreamOutboxQueue.init();
   pkiSyncCleanup.init();
   pkiDiscoveryQueue.startPkiDiscoveryScanQueue();
   pamDiscoveryQueue.startPamDiscoveryQueue();
