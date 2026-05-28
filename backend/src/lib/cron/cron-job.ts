@@ -32,7 +32,8 @@ export const CronJobName = {
   ProjectEnvHardDelete: "project-env-hard-delete",
   DigiCertRevocationSync: "digicert-revocation-sync",
   CaCrlRotation: "ca-crl-rotation",
-  AuditLogStreamOutboxStaleClaimSweeper: "audit-log-stream-outbox-stale-claim-sweeper"
+  AuditLogStreamOutboxStaleClaimSweeper: "audit-log-stream-outbox-stale-claim-sweeper",
+  AuditLogStreamOutboxDeliveredCleanup: "audit-log-stream-outbox-delivered-cleanup"
 } as const;
 
 // ── tuning constants ──────────────────────────────────────────────────────────
