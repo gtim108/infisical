@@ -1029,6 +1029,7 @@ export const registerRoutes = async (
 
   const gitHubAppService = gitHubAppServiceFactory({
     gitHubAppDAL,
+    appConnectionDAL,
     permissionService,
     kmsService
   });
