@@ -119,6 +119,12 @@ import {
   TValidateCloudflareConnectionCredentialsSchema
 } from "./cloudflare/cloudflare-connection-types";
 import {
+  TConvexConnection,
+  TConvexConnectionConfig,
+  TConvexConnectionInput,
+  TValidateConvexConnectionCredentialsSchema
+} from "./convex";
+import {
   TDatabricksConnection,
   TDatabricksConnectionConfig,
   TDatabricksConnectionInput,
@@ -459,6 +465,7 @@ export type TAppConnection = { id: string; configuration?: TAppConnectionConfigu
   | TSalesforceConnection
   | TSnowflakeConnection
   | TDatadogConnection
+  | TConvexConnection
 );
 
 export type TAppConnectionRaw = NonNullable<Awaited<ReturnType<TAppConnectionDALFactory["findById"]>>>;
@@ -536,6 +543,7 @@ export type TAppConnectionInput = { id: string } & (
   | TSalesforceConnectionInput
   | TSnowflakeConnectionInput
   | TDatadogConnectionInput
+  | TConvexConnectionInput
 );
 
 export type TSqlConnectionInput =
@@ -644,7 +652,8 @@ export type TAppConnectionConfig =
   | TTravisCIConnectionConfig
   | TSalesforceConnectionConfig
   | TSnowflakeConnectionConfig
-  | TDatadogConnectionConfig;
+  | TDatadogConnectionConfig
+  | TConvexConnectionConfig;
 
 export type TValidateAppConnectionCredentialsSchema =
   | TValidateAwsConnectionCredentialsSchema
@@ -712,7 +721,8 @@ export type TValidateAppConnectionCredentialsSchema =
   | TValidateTravisCIConnectionCredentialsSchema
   | TValidateSalesforceConnectionCredentialsSchema
   | TValidateSnowflakeConnectionCredentialsSchema
-  | TValidateDatadogConnectionCredentialsSchema;
+  | TValidateDatadogConnectionCredentialsSchema
+  | TValidateConvexConnectionCredentialsSchema;
 
 export type TListAwsConnectionKmsKeys = {
   connectionId: string;

@@ -44,6 +44,7 @@ import { TProjectDALFactory } from "@app/services/project/project-dal";
 import { ValidateOnePassConnectionCredentialsSchema } from "./1password";
 import { onePassConnectionService } from "./1password/1password-connection-service";
 import { ValidateAnthropicConnectionCredentialsSchema } from "./anthropic";
+import { ValidateConvexConnectionCredentialsSchema } from "./convex";
 import { TAppConnectionDALFactory } from "./app-connection-dal";
 import { AppConnection } from "./app-connection-enums";
 import { APP_CONNECTION_NAME_MAP } from "./app-connection-maps";
@@ -252,7 +253,8 @@ const VALIDATE_APP_CONNECTION_CREDENTIALS_MAP: Record<AppConnection, TValidateAp
   [AppConnection.TravisCI]: ValidateTravisCIConnectionCredentialsSchema,
   [AppConnection.Salesforce]: ValidateSalesforceConnectionCredentialsSchema,
   [AppConnection.Snowflake]: ValidateSnowflakeConnectionCredentialsSchema,
-  [AppConnection.Datadog]: ValidateDatadogConnectionCredentialsSchema
+  [AppConnection.Datadog]: ValidateDatadogConnectionCredentialsSchema,
+  [AppConnection.Convex]: ValidateConvexConnectionCredentialsSchema
 };
 
 export const appConnectionServiceFactory = ({

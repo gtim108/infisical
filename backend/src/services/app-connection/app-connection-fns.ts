@@ -102,6 +102,7 @@ import {
   getCloudflareConnectionListItem,
   validateCloudflareConnectionCredentials
 } from "./cloudflare/cloudflare-connection-fns";
+import { ConvexConnectionMethod, getConvexConnectionListItem, validateConvexConnectionCredentials } from "./convex";
 import { AppConnectionCredentialRotationStatus } from "./credential-rotation";
 import { decryptRotationMessage } from "./credential-rotation/app-connection-credential-rotation-fns";
 import { DatabricksConnectionMethod } from "./databricks";
@@ -337,7 +338,8 @@ export const listAppConnectionOptions = (projectType?: ProjectType) => {
     getTravisCIConnectionListItem(),
     getSalesforceConnectionListItem(),
     getSnowflakeConnectionListItem(),
-    getDatadogConnectionListItem()
+    getDatadogConnectionListItem(),
+    getConvexConnectionListItem()
   ]
     .filter((option) => {
       switch (projectType) {
@@ -564,7 +566,8 @@ export const validateAppConnectionCredentials = async (
     [AppConnection.OVH]: validateOvhConnectionCredentials as TAppConnectionCredentialsValidator,
     [AppConnection.DigiCert]: validateDigiCertConnectionCredentials as TAppConnectionCredentialsValidator,
     [AppConnection.Snowflake]: validateSnowflakeConnectionCredentials as TAppConnectionCredentialsValidator,
-    [AppConnection.Datadog]: validateDatadogConnectionCredentials as TAppConnectionCredentialsValidator
+    [AppConnection.Datadog]: validateDatadogConnectionCredentials as TAppConnectionCredentialsValidator,
+    [AppConnection.Convex]: validateConvexConnectionCredentials as TAppConnectionCredentialsValidator
   };
 
   return VALIDATE_APP_CONNECTION_CREDENTIALS_MAP[appConnection.app](appConnection, gatewayService, gatewayV2Service);
@@ -577,6 +580,7 @@ export const getAppConnectionMethodName = (method: TAppConnection["method"]) => 
       return "GitHub App";
     case GitHubConnectionMethod.Pat:
     case OnaConnectionMethod.PersonalAccessToken:
+    case ConvexConnectionMethod.PersonalAccessToken:
       return "Personal Access Token";
     case AzureKeyVaultConnectionMethod.OAuth:
     case AzureAppConfigurationConnectionMethod.OAuth:
@@ -798,7 +802,8 @@ export const TRANSITION_CONNECTION_CREDENTIALS_TO_PLATFORM: Record<
   [AppConnection.TravisCI]: platformManagedCredentialsNotSupported,
   [AppConnection.Salesforce]: platformManagedCredentialsNotSupported,
   [AppConnection.Snowflake]: platformManagedCredentialsNotSupported,
-  [AppConnection.Datadog]: platformManagedCredentialsNotSupported
+  [AppConnection.Datadog]: platformManagedCredentialsNotSupported,
+  [AppConnection.Convex]: platformManagedCredentialsNotSupported
 };
 
 export const enterpriseAppCheck = async (

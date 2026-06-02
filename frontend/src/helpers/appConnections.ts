@@ -56,6 +56,7 @@ import { BitbucketConnectionMethod } from "@app/hooks/api/appConnections/types/b
 import { ChecklyConnectionMethod } from "@app/hooks/api/appConnections/types/checkly-connection";
 import { ChefConnectionMethod } from "@app/hooks/api/appConnections/types/chef-connection";
 import { CircleCIConnectionMethod } from "@app/hooks/api/appConnections/types/circleci-connection";
+import { ConvexConnectionMethod } from "@app/hooks/api/appConnections/types/convex-connection";
 import { DatadogConnectionMethod } from "@app/hooks/api/appConnections/types/datadog-connection";
 import { DigiCertConnectionMethod } from "@app/hooks/api/appConnections/types/digicert-connection";
 import { DigitalOceanConnectionMethod } from "@app/hooks/api/appConnections/types/digital-ocean";
@@ -181,7 +182,8 @@ export const APP_CONNECTION_MAP: Record<
   [AppConnection.TravisCI]: { name: "Travis CI", image: "Travis CI.png" },
   [AppConnection.Salesforce]: { name: "Salesforce", image: "Salesforce.png" },
   [AppConnection.Snowflake]: { name: "Snowflake", image: "Snowflake.png" },
-  [AppConnection.Datadog]: { name: "Datadog", image: "DatadogWhite.png" }
+  [AppConnection.Datadog]: { name: "Datadog", image: "DatadogWhite.png" },
+  [AppConnection.Convex]: { name: "Convex", image: "Convex.png" }
 };
 
 export const getAppConnectionMethodDetails = (method: TAppConnection["method"]) => {
@@ -246,7 +248,8 @@ export const getAppConnectionMethodDetails = (method: TAppConnection["method"]) 
     case WindmillConnectionMethod.AccessToken:
     case FlyioConnectionMethod.AccessToken:
     case NetlifyConnectionMethod.AccessToken:
-      return { name: "Access Token", icon: faKey };
+    case ConvexConnectionMethod.PersonalAccessToken:
+      return { name: "Personal Access Token", icon: faKey };
     case Auth0ConnectionMethod.ClientCredentials:
     case SalesforceConnectionMethod.ClientCredentials:
       return { name: "Client Credentials", icon: faServer };
