@@ -26,9 +26,15 @@ export const getDefaultOnPremFeatures = () => {
     groups: false,
     status: null,
     trial_end: null,
+    pkiEst: true,
+    pkiAcme: true,
+    pkiScep: true,
+    pkiPqc: true,
+    kmsPqc: true,
     has_used_trial: true,
     secretApproval: true,
     secretRotation: true,
+    projectTemplates: true,
     caCrl: false,
     sshHostGroups: false,
     enterpriseSecretSyncs: false,
@@ -48,6 +54,6 @@ export const setupLicenseRequestWithStore = () => {};
 
 export const getLicenseKeyConfig = () => {
   return {
-    isValid: false
+    isValid: true
   };
 };
