@@ -80,11 +80,11 @@ export type TFeatureSet = {
   };
   pkiEst: boolean;
   pkiAcme: true;
-  pkiScep: false;
-  pkiPqc: false;
+  pkiScep: true;
+  pkiPqc: true;
   kmsPqc: false;
   enforceMfa: false;
-  projectTemplates: false;
+  projectTemplates: true;
   kmip: false;
   gateway: false;
   gatewayPool: false;
