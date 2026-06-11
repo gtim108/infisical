@@ -102,6 +102,23 @@ export type TCreateAuditLogDTO = {
 
 export type AuditLogInfo = Pick<TCreateAuditLogDTO, "userAgent" | "userAgentType" | "ipAddress" | "actor">;
 
+// What `pushToLog` writes to the Redis ingest stream. We pin `id` and `createdAt` at
+// push time so a consumer retry (reprocessing the same batch after a failed insert)
+// re-inserts byte-identical rows instead of regenerating ids and creating duplicates.
+// `createdAt`/`expiresAt` are ISO strings for JSON round-tripping through the stream.
+//
+// org/plan/retention are also resolved at push time and travel with the entry, so the
+// consumer persists it with no further DB lookups: `orgId` is the resolved org (never
+// undefined for a streamed entry), `expiresAt` is the precomputed TTL boundary, and
+// `projectName` is captured for project-scoped events (Postgres-only at insert time).
+export type TAuditLogStreamEntry = TCreateAuditLogDTO & {
+  id: string;
+  createdAt: string;
+  orgId: string;
+  expiresAt: string;
+  projectName?: string;
+};
+
 export type TAuditLogServiceFactory = {
   createAuditLog: (data: TCreateAuditLogDTO) => Promise<void>;
   listAuditLogs: (arg: TListProjectAuditLogDTO) => Promise<
@@ -679,6 +696,7 @@ export enum EventType {
   VIEW_INSIGHTS_SECRETS_MANAGEMENT_ACCESS_VOLUME = "view-insights-secrets-management-access-volume",
   VIEW_INSIGHTS_SECRETS_MANAGEMENT_ACCESS_LOCATIONS = "view-insights-secrets-management-access-locations",
   VIEW_INSIGHTS_SECRETS_MANAGEMENT_SUMMARY = "view-insights-secrets-management-summary",
+  VIEW_INSIGHTS_SECRETS_DUPLICATION = "view-insights-secrets-duplication",
   VIEW_INSIGHTS_PAM_SUMMARY = "view-insights-pam-summary",
   VIEW_INSIGHTS_PAM_SESSION_ACTIVITY = "view-insights-pam-session-activity",
   VIEW_INSIGHTS_PAM_TOP_ACTORS = "view-insights-pam-top-actors",
@@ -5655,6 +5673,13 @@ interface ViewSecretManagementInsightsSummaryEvent {
   };
 }
 
+interface ViewInsightsSecretsDuplicationEvent {
+  type: EventType.VIEW_INSIGHTS_SECRETS_DUPLICATION;
+  metadata: {
+    projectId: string;
+  };
+}
+
 interface ViewAuditLogsEvent {
   type: EventType.VIEW_AUDIT_LOGS;
   metadata?: Record<string, unknown>;
@@ -7866,6 +7891,7 @@ export type Event =
   | ViewSecretManagementInsightsAccessLocationsEvent
   | ViewInsightsAuthMethodsEvent
   | ViewSecretManagementInsightsSummaryEvent
+  | ViewInsightsSecretsDuplicationEvent
   | ViewAuditLogsEvent
   | ViewPamInsightsSummaryEvent
   | ViewPamInsightsSessionActivityEvent

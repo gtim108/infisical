@@ -43,6 +43,9 @@ import { auditLogQueueServiceFactory } from "@app/ee/services/audit-log/audit-lo
 import { auditLogServiceFactory } from "@app/ee/services/audit-log/audit-log-service";
 import { auditLogStreamDALFactory } from "@app/ee/services/audit-log-stream/audit-log-stream-dal";
 import { auditLogStreamServiceFactory } from "@app/ee/services/audit-log-stream/audit-log-stream-service";
+import { auditLogStreamOutboxDALFactory } from "@app/ee/services/audit-log-stream-outbox/audit-log-stream-outbox-dal";
+import { auditLogStreamOutboxQueueFactory } from "@app/ee/services/audit-log-stream-outbox/audit-log-stream-outbox-queue";
+import { auditLogStreamOutboxServiceFactory } from "@app/ee/services/audit-log-stream-outbox/audit-log-stream-outbox-service";
 import { certificateAuthorityCrlDALFactory } from "@app/ee/services/certificate-authority-crl/certificate-authority-crl-dal";
 import { certificateAuthorityCrlServiceFactory } from "@app/ee/services/certificate-authority-crl/certificate-authority-crl-service";
 import { certificateEstServiceFactory } from "@app/ee/services/certificate-est/certificate-est-service";
@@ -375,6 +378,7 @@ import { kmskeyDALFactory } from "@app/services/kms/kms-key-dal";
 import { TKmsRootConfigDALFactory } from "@app/services/kms/kms-root-config-dal";
 import { kmsServiceFactory } from "@app/services/kms/kms-service";
 import { RootKeyEncryptionStrategy } from "@app/services/kms/kms-types";
+import { licenseClientFactory } from "@app/services/license-client";
 import { applicationMembershipCleanupServiceFactory } from "@app/services/membership/application-membership-cleanup-service";
 import { membershipDALFactory } from "@app/services/membership/membership-dal";
 import { membershipRoleDALFactory } from "@app/services/membership/membership-role-dal";
@@ -641,6 +645,7 @@ export const registerRoutes = async (
 
   const auditLogDAL = auditLogDALFactory(auditLogDb ?? db);
   const auditLogStreamDAL = auditLogStreamDALFactory(db);
+  const auditLogStreamOutboxDAL = auditLogStreamOutboxDALFactory(db);
   const trustedIpDAL = trustedIpDALFactory(db);
   const telemetryDAL = telemetryDALFactory(db);
   const appConnectionDAL = appConnectionDALFactory(db);
@@ -782,6 +787,10 @@ export const registerRoutes = async (
     envConfig
   });
 
+  // License Server v2 client SDK. Coexists with licenseService during migration - getFeature()
+  // is the single read primitive; falls back to feature defaults until the server is configured.
+  const licenseClient = licenseClientFactory({ envConfig, keyStore });
+
   // Project events SSE service (for clients to subscribe to secret mutation events)
   const projectEventsSSEService = projectEventsSSEServiceFactory({
     projectEventsService,
@@ -915,12 +924,26 @@ export const registerRoutes = async (
     kmsService
   });
 
+  const auditLogStreamOutboxService = auditLogStreamOutboxServiceFactory({
+    auditLogStreamOutboxDAL,
+    auditLogStreamDAL,
+    kmsService,
+    keyStore,
+    queueService
+  });
+
+  const auditLogStreamOutboxQueue = auditLogStreamOutboxQueueFactory({
+    queueService,
+    cronJob,
+    auditLogStreamOutboxService
+  });
+
   const auditLogQueue = await auditLogQueueServiceFactory({
     auditLogDAL,
     queueService,
     projectDAL,
     licenseService,
-    auditLogStreamService,
+    auditLogStreamOutboxService,
     clickhouseClient: clickhouse,
     keyStore
   });
@@ -1341,7 +1364,10 @@ export const registerRoutes = async (
 
   const projectQueueService = projectQueueFactory({
     queueService,
+    keyStore,
     secretDAL,
+    secretV2BridgeDAL,
+    kmsService,
     folderDAL,
     projectDAL,
     orgDAL,
@@ -1698,6 +1724,7 @@ export const registerRoutes = async (
     licenseService,
     gatewayService,
     gatewayV2Service,
+    gatewayPoolService,
     gatewayDAL,
     gatewayV2DAL,
     auditLogService,
@@ -2680,7 +2707,9 @@ export const registerRoutes = async (
     folderDAL,
     secretV2BridgeDAL,
     projectBotService,
+    projectDAL,
     userDAL,
+    kmsService,
     keyStore
   });
 
@@ -3595,6 +3624,7 @@ export const registerRoutes = async (
   projectEnvQueue.init();
   projectCleanupQueue.init();
   healthAlert.init();
+  auditLogStreamOutboxQueue.init();
   pkiSyncCleanup.init();
   pkiDiscoveryQueue.startPkiDiscoveryScanQueue();
   pamDiscoveryQueue.startPamDiscoveryQueue();
@@ -3720,6 +3750,7 @@ export const registerRoutes = async (
     pkiTemplate: pkiTemplateService,
     secretScanning: secretScanningService,
     license: licenseService,
+    licenseClient,
     trustedIp: trustedIpService,
     scim: scimService,
     secretBlindIndex: secretBlindIndexService,
