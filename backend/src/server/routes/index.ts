@@ -1032,7 +1032,6 @@ export const registerRoutes = async (
     alarmDAL,
     alarmChannelDAL,
     alarmRecipientDAL,
-    alarmHistoryDAL,
     alarmProviderRegistry,
     kmsService,
     orgDAL,
