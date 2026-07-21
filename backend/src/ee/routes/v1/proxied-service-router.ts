@@ -202,6 +202,30 @@ export const registerProxiedServiceRouter = async (server: FastifyZodProvider) =
   });
 
   server.route({
+    method: "POST",
+    url: "/:serviceId/report-usage",
+    config: { rateLimit: writeLimit },
+    onRequest: verifyAuth([AuthMode.IDENTITY_ACCESS_TOKEN]),
+    schema: {
+      hide: true,
+      tags: [ApiDocsTags.ProxiedServices],
+      description: "Report that the agent proxy brokered a request for this service",
+      params: z.object({ serviceId: z.string().uuid() }),
+      body: z.object({ usedAt: z.string().datetime() }),
+      response: {
+        200: z.object({})
+      }
+    },
+    handler: async (req) => {
+      await server.services.proxiedService.reportUsage(
+        { serviceId: req.params.serviceId, usedAt: new Date(req.body.usedAt) },
+        req.permission
+      );
+      return {};
+    }
+  });
+
+  server.route({
     method: "DELETE",
     url: "/:serviceId",
     config: { rateLimit: writeLimit },

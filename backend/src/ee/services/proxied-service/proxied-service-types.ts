@@ -52,6 +52,11 @@ export type TDeleteProxiedServiceDTO = {
   serviceId: string;
 };
 
+export type TReportProxiedServiceUsageDTO = {
+  serviceId: string;
+  usedAt: Date;
+};
+
 export type TListProxiedServicesDTO = {
   projectId: string;
   environment: string;
