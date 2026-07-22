@@ -290,7 +290,6 @@ export const licenseServiceFactory = ({
   };
 
   const getPlan = async (orgId: string, projectId?: string) => {
-    logger.info(`getPlan: attempting to fetch plan for [orgId=${orgId}] [projectId=${projectId}]`);
     try {
       if (instanceType === InstanceType.Cloud) {
         const cachedPlan = await keyStore.getItem(KeyStorePrefixes.LicenseCloudPlan(orgId));
@@ -392,8 +391,6 @@ export const licenseServiceFactory = ({
         JSON.stringify(onPremFeatures)
       );
       return onPremFeatures;
-    } finally {
-      logger.info(`getPlan: Process done for [orgId=${orgId}] [projectId=${projectId}]`);
     }
     return onPremFeatures;
   };
