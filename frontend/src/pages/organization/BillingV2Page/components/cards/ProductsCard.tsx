@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
-import { DollarSign, Package, RefreshCw } from "lucide-react";
+import { CSSProperties, ReactNode } from "react";
+import { ArrowBigUpDashIcon, DollarSign, Package, RefreshCw } from "lucide-react";
 
 import { createNotification } from "@app/components/notifications";
 import {
@@ -55,7 +55,9 @@ const ActiveProductCard = ({
   // available commitment. Clicking opens the set-commitment flow.
   const commitNudge = readOnly ? null : commitSavingsNudge(entitlement);
   // Every deprecation is presented as a retiring plan for now (see asPlanDeprecation).
-  const deprecation = asPlanDeprecation(entitlement?.deprecation);
+  const deprecation = !entitlement?.planTier?.includes("enterprise")
+    ? asPlanDeprecation(entitlement?.deprecation)
+    : null;
   const isProductDeprecated = deprecation?.kind === "product";
   const isPlanDeprecated = deprecation?.kind === "plan";
 
@@ -114,15 +116,9 @@ const ActiveProductCard = ({
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[15px] font-semibold text-foreground">{prod.name}</span>
-            {/* Plan retiring: strikethrough tier chip in warning tone. Otherwise the plain tier chip. */}
-            {entitlement?.planTier &&
-              (isPlanDeprecated ? (
-                <Badge variant="warning" className="line-through">
-                  {tierLabel(entitlement.planTier)}
-                </Badge>
-              ) : (
-                <Badge variant="info">{tierLabel(entitlement.planTier)}</Badge>
-              ))}
+            {entitlement?.planTier && (
+              <Badge variant="info">{tierLabel(entitlement.planTier)}</Badge>
+            )}
             {isProductDeprecated && <Badge variant="danger">Deprecated</Badge>}
             {prod.addon && <Badge variant="neutral">Add-on</Badge>}
             {isTrialing ? <Badge variant="info">Trial</Badge> : <ActiveBadge />}
@@ -221,7 +217,13 @@ const AvailableProductTile = ({
   if (!readOnly) {
     if (selfServe) {
       action = (
-        <Button variant="org" size="sm" onClick={() => onManage(prod.id)}>
+        <Button
+          variant="product"
+          size="sm"
+          style={{ "--product-color": prod.color } as CSSProperties}
+          onClick={() => onManage(prod.id)}
+        >
+          <ArrowBigUpDashIcon />
           Activate
         </Button>
       );
