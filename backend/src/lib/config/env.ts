@@ -372,6 +372,14 @@ const envSchema = z
       .describe(
         "Soft memory ceiling (GOMEMLIMIT) handed to the Go scanner process. The runtime GCs harder as it approaches the limit rather than growing. Set to 0 to disable."
       ),
+    SECRET_SCANNING_CPU_THREADS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .default(1)
+      .describe(
+        "CPU thread ceiling for scanning child processes, applied as GOMAXPROCS to the Go scanner and pack.threads to git clone. Both otherwise use every core on the host, so one full scan can saturate the instance. Set to 0 to remove the cap."
+      ),
     SECRET_SCANNING_MAX_REPO_SIZE_MB: z.coerce
       .number()
       .int()
@@ -391,7 +399,7 @@ const envSchema = z
     LICENSE_SERVER_KEY: zpStr(z.string().optional()),
     LICENSE_KEY: zpStr(z.string().optional()),
     LICENSE_KEY_OFFLINE: zpStr(z.string().optional()),
-    LICENSE_SERVER_V2_MODE: z.enum(["off", "read-compare", "on"]).default("off"),
+    LICENSE_SERVER_V2_MODE: z.enum(["off", "read-compare", "on"]).default("on"),
     LICENSE_SERVER_V2_URL: zpStr(z.string().optional()),
     LICENSE_SERVER_V2_SERVICE_KEY: zpStr(z.string().optional()),
     // When true, new checkouts (adding a payment method) and trials on License Server v1 cloud are
