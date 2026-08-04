@@ -113,7 +113,6 @@ export const getDefaultOnPremFeatures = (): TFeatureSet => ({
   gateway: false,
   gatewayPool: false,
   pamSlackNotifications: false,
-  sshHostGroups: false,
   secretScanning: false,
   enterpriseSecretSyncs: false,
   enterpriseCertificateSyncs: false,
@@ -130,7 +129,8 @@ export const getDefaultOnPremFeatures = (): TFeatureSet => ({
   pam: null,
   certManager: null,
   secretsTemporaryAccess: null,
-  enterprisePamAccount: null
+  enterprisePamAccount: null,
+  crossProjectSecretSharing: false
 });
 
 export const setupLicenseRequestWithStore = (

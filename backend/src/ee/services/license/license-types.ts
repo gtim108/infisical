@@ -101,7 +101,6 @@ export type TFeatureSet = {
   gateway: false;
   gatewayPool: false;
   pamSlackNotifications: boolean;
-  sshHostGroups: false;
   secretScanning: false;
   enterpriseSecretSyncs: false;
   enterpriseCertificateSyncs: false;
@@ -121,6 +120,7 @@ export type TFeatureSet = {
   certManager: null;
   secretsTemporaryAccess: null;
   enterprisePamAccount: null;
+  crossProjectSecretSharing: false;
 };
 
 export type TOrgPlansTableDTO = {
