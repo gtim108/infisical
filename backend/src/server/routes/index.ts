@@ -199,6 +199,7 @@ import { getConfig, TEnvConfig } from "@app/lib/config/env";
 import { cronJobFactory } from "@app/lib/cron/cron-job";
 import { crypto } from "@app/lib/crypto/cryptography";
 import { BadRequestError } from "@app/lib/errors";
+import { initGatewayLoadTracker } from "@app/lib/gateway-v2/gateway-load-tracker";
 import { logger } from "@app/lib/logger";
 import { Redlock } from "@app/lib/red-lock";
 import { TQueueServiceFactory } from "@app/queue";
@@ -249,6 +250,7 @@ import { authLoginServiceFactory } from "@app/services/auth/auth-login-service";
 import { authPaswordServiceFactory } from "@app/services/auth/auth-password-service";
 import { signupOnboardingResponseDALFactory } from "@app/services/auth/auth-signup-onboarding-dal";
 import { authSignupServiceFactory } from "@app/services/auth/auth-signup-service";
+import { emailDispatchGuardFactory } from "@app/services/auth/email-dispatch-guard";
 import { mfaLockoutServiceFactory } from "@app/services/auth/mfa-lockout-service";
 import { tokenDALFactory } from "@app/services/auth-token/auth-token-dal";
 import { tokenServiceFactory } from "@app/services/auth-token/auth-token-service";
@@ -433,6 +435,7 @@ import { pkiSubscriberQueueServiceFactory } from "@app/services/pki-subscriber/p
 import { pkiSubscriberServiceFactory } from "@app/services/pki-subscriber/pki-subscriber-service";
 import { pkiSyncCleanupQueueServiceFactory } from "@app/services/pki-sync/pki-sync-cleanup-queue";
 import { pkiSyncDALFactory } from "@app/services/pki-sync/pki-sync-dal";
+import { pkiSyncHealthCheckQueueFactory } from "@app/services/pki-sync/pki-sync-health-check-queue";
 import { pkiSyncQueueFactory } from "@app/services/pki-sync/pki-sync-queue";
 import { pkiSyncServiceFactory } from "@app/services/pki-sync/pki-sync-service";
 import { pkiTemplatesDALFactory } from "@app/services/pki-templates/pki-templates-dal";
@@ -579,6 +582,10 @@ export const registerRoutes = async (
   const redlock = new Redlock([redis], { retryCount: 0 });
   const cronJob = cronJobFactory({ redis, redlock });
   cronJob.start();
+
+  // Reached from the gateway proxy layer in src/lib, which has no DI, so it is installed as a module
+  // singleton rather than threaded through every call site.
+  const gatewayLoadTracker = initGatewayLoadTracker(keyStore);
 
   await server.register(registerSecretScanningV2Webhooks, {
     prefix: "/secret-scanning/webhooks"
@@ -851,6 +858,7 @@ export const registerRoutes = async (
   });
 
   const tokenService = tokenServiceFactory({ tokenDAL: authTokenDAL, userDAL, membershipUserDAL, orgDAL, keyStore });
+  const emailDispatchGuard = emailDispatchGuardFactory({ keyStore });
 
   const applicationMembershipCleanupService = applicationMembershipCleanupServiceFactory({
     membershipDAL,
@@ -1396,7 +1404,8 @@ export const registerRoutes = async (
     tokenService,
     smtpService,
     userDAL,
-    membershipUserDAL
+    membershipUserDAL,
+    emailDispatchGuard
   });
 
   const projectBotService = projectBotServiceFactory({ permissionService, projectBotDAL, projectDAL });
@@ -1470,7 +1479,8 @@ export const registerRoutes = async (
     orgService,
     loginService,
     emailDomainDAL,
-    signupOnboardingResponseDAL
+    signupOnboardingResponseDAL,
+    emailDispatchGuard
   });
 
   const microsoftTeamsService = microsoftTeamsServiceFactory({
@@ -1551,6 +1561,8 @@ export const registerRoutes = async (
     projectDAL,
     permissionService,
     userDAL,
+    userAliasDAL,
+    orgDAL,
     userGroupMembershipDAL,
     smtpService,
     projectKeyDAL,
@@ -1900,6 +1912,8 @@ export const registerRoutes = async (
     pamAccountDAL,
     pamSessionDAL,
     userDAL,
+    userAliasDAL,
+    orgDAL,
     groupDAL,
     userGroupMembershipDAL,
     identityGroupMembershipDAL,
@@ -2312,7 +2326,8 @@ export const registerRoutes = async (
     microsoftTeamsService,
     folderCommitService,
     notificationService,
-    telemetryService
+    telemetryService,
+    secretValidationRuleService
   });
 
   const secretService = secretServiceFactory({
@@ -3207,6 +3222,8 @@ export const registerRoutes = async (
     keyStore,
     pkiSyncDAL,
     auditLogService,
+    notificationService,
+    pkiApplicationDAL,
     projectDAL,
     licenseService,
     certificateDAL,
@@ -3224,6 +3241,27 @@ export const registerRoutes = async (
     cronJob,
     pkiSyncDAL,
     pkiSyncQueue
+  });
+
+  const pkiSyncHealthCheckQueue = pkiSyncHealthCheckQueueFactory({
+    cronJob,
+    queueService,
+    pkiSyncDAL,
+    keyStore,
+    appConnectionDAL,
+    projectDAL,
+    kmsService,
+    certificateDAL,
+    certificateBodyDAL,
+    certificateSecretDAL,
+    certificateAuthorityDAL,
+    certificateAuthorityCertDAL,
+    certificateSyncDAL,
+    auditLogService,
+    notificationService,
+    pkiApplicationDAL,
+    gatewayV2Service,
+    gatewayPoolService
   });
 
   const internalCaFns = InternalCertificateAuthorityFns({
@@ -3677,6 +3715,8 @@ export const registerRoutes = async (
     permissionService,
     licenseService,
     pkiSyncQueue,
+    pkiSyncHealthCheckQueue,
+    auditLogService,
     kmsService
   });
 
@@ -3909,6 +3949,7 @@ export const registerRoutes = async (
   alertQueue.init();
   auditLogStreamOutboxQueue.init();
   pkiSyncCleanup.init();
+  pkiSyncHealthCheckQueue.init();
   pamDiscoveryService.init();
   pkiDiscoveryQueue.startPkiDiscoveryScanQueue();
   dailyReminderQueueService.startDailyRemindersJob();
@@ -4283,6 +4324,7 @@ export const registerRoutes = async (
   }
 
   server.addHook("onClose", async () => {
+    gatewayLoadTracker.shutdown();
     cronJobs.forEach((job) => job.stop());
     await cronJob.stop();
     await telemetryService.flushAll();
