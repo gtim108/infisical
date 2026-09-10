@@ -2818,6 +2818,9 @@ interface AddUserToGroupEvent {
     groupName: string;
     userId: string;
     username: string;
+    source?: "github-org-sync";
+    githubOrgName?: string;
+    syncTrigger?: "login" | "manual";
   };
 }
 
@@ -2828,6 +2831,9 @@ interface RemoveUserFromGroupEvent {
     groupName: string;
     userId: string;
     username: string;
+    source?: "github-org-sync";
+    githubOrgName?: string;
+    syncTrigger?: "login" | "manual";
   };
 }
 
@@ -6846,8 +6852,9 @@ interface SecretValidationRuleCreateEvent {
     ruleId: string;
     name: string;
     type: string;
-    environmentSlug?: string;
+    environment?: string;
     secretPath: string;
+    isActive: boolean;
   };
 }
 
@@ -6868,6 +6875,7 @@ interface SecretValidationRuleDeleteEvent {
   metadata: {
     ruleId: string;
     name: string;
+    type: string;
   };
 }
 
