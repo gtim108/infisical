@@ -13,12 +13,16 @@ import {
   TSamlConfigs
 } from "@app/db/schemas";
 import { bootstrapAgentVaultProject } from "@app/ee/services/agent-vault-project/agent-vault-project-bootstrap";
+import { TAuditLogSettingsServiceFactory } from "@app/ee/services/audit-log/audit-log-settings-service";
+import { TGatewayV2ServiceFactory } from "@app/ee/services/gateway-v2/gateway-v2-service";
 import { TGroupDALFactory } from "@app/ee/services/group/group-dal";
 import { TUserGroupMembershipDALFactory } from "@app/ee/services/group/user-group-membership-dal";
 import { TLdapConfigDALFactory } from "@app/ee/services/ldap-config/ldap-config-dal";
 import { TLicenseServiceFactory } from "@app/ee/services/license/license-service";
 import { TOidcConfigDALFactory } from "@app/ee/services/oidc/oidc-config-dal";
 import { bootstrapPamProject } from "@app/ee/services/pam-project/pam-project-bootstrap";
+import { terminatePamSessionsForUsers } from "@app/ee/services/pam-session/pam-session-access-fns";
+import { TPamSessionDALFactory } from "@app/ee/services/pam-session/pam-session-dal";
 import {
   OrgPermissionActions,
   OrgPermissionGroupActions,
@@ -141,8 +145,11 @@ type TOrgServiceFactoryDep = {
   additionalPrivilegeDAL: TAdditionalPrivilegeDALFactory;
   approvalPolicyDAL: Pick<TApprovalPolicyDALFactory, "deleteUserStepApproversInProjects">;
   alertChannelRecipientDAL: Pick<TAlertChannelRecipientDALFactory, "pruneOutOfScopeRecipients">;
+  pamSessionDAL: Pick<TPamSessionDALFactory, "findLiveByOrgAndUserIds" | "update">;
+  gatewayV2Service: Pick<TGatewayV2ServiceFactory, "getPAMConnectionDetails">;
   certificatePolicyDAL: Pick<TCertificatePolicyDALFactory, "create">;
   usageMeteringService: Pick<TUsageMeteringServiceFactory, "emit">;
+  auditLogSettingsService: Pick<TAuditLogSettingsServiceFactory, "invalidateCache">;
 };
 
 export type TOrgServiceFactory = ReturnType<typeof orgServiceFactory>;
@@ -180,7 +187,10 @@ export const orgServiceFactory = ({
   approvalPolicyDAL,
   alertChannelRecipientDAL,
   certificatePolicyDAL,
-  usageMeteringService
+  usageMeteringService,
+  pamSessionDAL,
+  gatewayV2Service,
+  auditLogSettingsService
 }: TOrgServiceFactoryDep) => {
   /*
    * Get organization details by the organization id
@@ -411,7 +421,7 @@ export const orgServiceFactory = ({
       });
     }
 
-    return orgDAL.transaction(async (tx) => {
+    const upgradedOrg = await orgDAL.transaction(async (tx) => {
       const org = await orgDAL.findById(actorOrgId, tx);
       if (org.shouldUseNewPrivilegeSystem) {
         throw new BadRequestError({
@@ -434,6 +444,12 @@ export const orgServiceFactory = ({
         tx
       );
     });
+
+    // Denials only get recorded on the new privilege system, so bust the cache or denials right
+    // after upgrading get missed. Never throws, since the upgrade has already committed.
+    await auditLogSettingsService.invalidateCache(actorOrgId);
+
+    return upgradedOrg;
   };
 
   /*
@@ -466,6 +482,7 @@ export const orgServiceFactory = ({
       maxSharedSecretViewLimit,
       blockDuplicateSecretSyncDestinations,
       allowCrossProjectSecretSharing,
+      requireGatewayPools,
       secretShareBrandConfig
     }
   }: TUpdateOrgDTO) => {
@@ -504,6 +521,15 @@ export const orgServiceFactory = ({
         throw new BadRequestError({
           message:
             "Failed to update secret share branding due to plan restriction. Upgrade plan to configure custom branding."
+        });
+      }
+    }
+
+    if (requireGatewayPools) {
+      if (!plan.gatewayPool) {
+        throw new BadRequestError({
+          message:
+            "Failed to require gateway pools due to plan restriction. Upgrade to Infisical Enterprise to use gateway pools."
         });
       }
     }
@@ -671,6 +697,7 @@ export const orgServiceFactory = ({
       maxSharedSecretViewLimit,
       blockDuplicateSecretSyncDestinations,
       allowCrossProjectSecretSharing,
+      requireGatewayPools,
       secretShareBrandConfig
     });
     if (!org) throw new NotFoundError({ message: `Organization with ID '${orgId}' not found` });
@@ -836,7 +863,8 @@ export const orgServiceFactory = ({
     const decodedToken = crypto.jwt().verify(authToken, cfg.AUTH_SECRET) as AuthModeJwtTokenPayload;
     if (!decodedToken.authMethod) throw new UnauthorizedError({ name: "Auth method not found on existing token" });
 
-    const org = await requestMemoize(requestMemoKeys.orgFindOrgById(orgId), () => orgDAL.findOrgById(orgId));
+    const org = await requestMemoize(requestMemoKeys.orgFindById(orgId), () => orgDAL.findById(orgId));
+    if (!org) throw new NotFoundError({ message: `Organization with ID '${orgId}' not found` });
     // if root org null = this is a root org then cancel the subscription.
     if (!org.rootOrgId) {
       await licenseService.cancelOrgSubscription(orgId);
@@ -985,6 +1013,8 @@ export const orgServiceFactory = ({
     const updatesToActiveAdmin = role === OrgMembershipRole.Admin && isActive !== false;
     const noRoleOrActivationChange = role === undefined && (isActive === undefined || isActive === true);
 
+    let sendPamCancellations = () => {};
+
     const membership = await orgDAL.transaction(async (tx) => {
       if (!updatesToActiveAdmin && !noRoleOrActivationChange) {
         await assertWillRetainOrgAdmin({
@@ -1030,8 +1060,23 @@ export const orgServiceFactory = ({
           );
         }
       }
+
+      if (isActive === false && updatedOrgMembership.actorUserId) {
+        const childOrgs = await orgDAL.find({ rootOrgId: orgId }, { tx });
+        sendPamCancellations = await terminatePamSessionsForUsers({
+          orgIds: [orgId, ...childOrgs.map((el) => el.id)],
+          userIds: [updatedOrgMembership.actorUserId],
+          pamSessionDAL,
+          gatewayV2Service,
+          tx
+        });
+      }
+
       return updatedOrgMembership;
     });
+
+    sendPamCancellations();
+
     return membership;
   };
 
@@ -1336,7 +1381,9 @@ export const orgServiceFactory = ({
       userGroupMembershipDAL,
       additionalPrivilegeDAL,
       approvalPolicyDAL,
-      alertChannelRecipientDAL
+      alertChannelRecipientDAL,
+      pamSessionDAL,
+      gatewayV2Service
     });
 
     // Removing an org member cascades their project + group memberships, changing the identity meters.
@@ -1392,7 +1439,9 @@ export const orgServiceFactory = ({
       userGroupMembershipDAL,
       additionalPrivilegeDAL,
       approvalPolicyDAL,
-      alertChannelRecipientDAL
+      alertChannelRecipientDAL,
+      pamSessionDAL,
+      gatewayV2Service
     });
 
     // Removing org members cascades their project + group memberships, changing the identity meters.

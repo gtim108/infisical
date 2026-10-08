@@ -27,6 +27,7 @@ type ComboboxCreationBaseConfig<TOption> = {
   isValid?: (inputValue: string, context: ComboboxCreationContext<TOption>) => boolean;
   isDuplicate?: (inputValue: string, option: TOption) => boolean;
   formatLabel?: (inputValue: string) => React.ReactNode;
+  emptyLabel?: React.ReactNode;
   isDisabled?: boolean;
 };
 
@@ -85,6 +86,7 @@ type ComboboxSharedProps<TOption> = {
   isLoading?: boolean;
   isError?: boolean;
   modal?: boolean;
+  onPopupOpenChange?: (open: boolean) => void;
   portalContainer?: HTMLElement | React.RefObject<HTMLElement | null> | null;
   contentClassName?: string;
   onInputValueChange?: (inputValue: string) => void;
@@ -106,6 +108,7 @@ type ComboboxInputProps = Omit<
 
 type ComboboxSingleValueProps<TOption> = {
   multiple?: false;
+  variant?: "default" | "input-group";
   value?: TOption | null;
 };
 
@@ -155,6 +158,31 @@ const clearSingleComboboxValue = <TOption,>(props: ComboboxSingleProps<TOption>)
   }
 
   if (props.isClearable !== false) props.onValueChange(null);
+};
+
+const useComboboxOpen = (onPopupOpenChange?: (open: boolean) => void) => {
+  const [open, setOpen] = React.useState(false);
+  const observerRef = React.useRef(onPopupOpenChange);
+  const hasObserver = Boolean(onPopupOpenChange);
+
+  React.useLayoutEffect(() => {
+    const previousObserver = observerRef.current;
+    observerRef.current = onPopupOpenChange;
+    if (previousObserver && !onPopupOpenChange) previousObserver(false);
+  }, [onPopupOpenChange]);
+
+  React.useLayoutEffect(() => {
+    observerRef.current?.(open);
+  }, [open, hasObserver]);
+
+  React.useLayoutEffect(
+    () => () => {
+      observerRef.current?.(false);
+    },
+    []
+  );
+
+  return [open, setOpen] as const;
 };
 
 const SINGLE_LIST_MAX_HEIGHT = "min(18.75rem, var(--available-height, 50dvh))";
@@ -364,7 +392,7 @@ const ComboboxList = <TOption,>({
       const hasCreationError = Boolean(
         inlineCreation && creationError?.inputValue === item.inputValue
       );
-      let label: React.ReactNode = "Create";
+      let label: React.ReactNode = creation?.emptyLabel ?? "Create";
       if (item.inputValue) {
         label = creation?.formatLabel?.(item.inputValue) ?? `Create "${item.inputValue}"`;
       }
@@ -813,7 +841,9 @@ const SingleCombobox = <TOption,>(props: ComboboxSingleProps<TOption>) => {
     isLoading = false,
     isError = false,
     modal = false,
+    onPopupOpenChange,
     portalContainer: portalContainerProp,
+    variant = "default",
     className,
     contentClassName,
     onInputValueChange,
@@ -829,7 +859,7 @@ const SingleCombobox = <TOption,>(props: ComboboxSingleProps<TOption>) => {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const listScrollRef = React.useRef<HTMLDivElement>(null);
   const highlightedOptionValueRef = React.useRef<string | null>(null);
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useComboboxOpen(onPopupOpenChange);
   const selectedLabel = value == null ? "" : getOptionLabel(value);
   const [search, setSearch] = React.useState("");
   const searchRef = React.useRef(search);
@@ -1052,7 +1082,7 @@ const SingleCombobox = <TOption,>(props: ComboboxSingleProps<TOption>) => {
             <ComboboxPrimitive.Input
               ref={inputRef}
               id={id}
-              data-slot="combobox-input"
+              data-slot={variant === "input-group" ? "input-group-control" : "combobox-input"}
               data-invalid={isError}
               aria-invalid={isError || undefined}
               aria-busy={isLoading || isCreationPending || undefined}
@@ -1102,9 +1132,11 @@ const SingleCombobox = <TOption,>(props: ComboboxSingleProps<TOption>) => {
                 preventComboboxFormSubmit(event);
               }}
               className={cn(
-                "h-9 w-full rounded-md border border-border bg-transparent py-2 pr-9 pl-2.5 text-sm text-foreground transition-[color,box-shadow] outline-none placeholder:text-muted",
-                "hover:border-foreground/20 focus:border-ring focus:ring-[3px] focus:ring-ring/50",
-                "data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 data-[invalid=true]:border-danger data-[invalid=true]:ring-danger/40",
+                "h-9 w-full bg-transparent py-2 pr-9 text-sm text-foreground transition-[color,box-shadow] outline-none placeholder:text-muted",
+                "data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50",
+                variant === "default" &&
+                  "rounded-md border border-border pl-2.5 hover:border-foreground/20 focus:border-ring focus:ring-[3px] focus:ring-ring/50 data-[invalid=true]:border-danger data-[invalid=true]:ring-danger/40",
+                variant === "input-group" && "rounded-none border-0 pl-2 shadow-none",
                 !isEditing && value != null && renderValue && "text-transparent",
                 className
               )}
@@ -1199,6 +1231,7 @@ const MultipleCombobox = <TOption,>({
   isLoading = false,
   isError = false,
   modal = false,
+  onPopupOpenChange,
   portalContainer: portalContainerProp,
   className,
   contentClassName,
@@ -1218,7 +1251,7 @@ const MultipleCombobox = <TOption,>({
   const { scrollEdges, setViewportRef } = useScrollEdges<HTMLDivElement>(
     singleLine ? "horizontal" : "vertical"
   );
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useComboboxOpen(onPopupOpenChange);
   const openRef = React.useRef(open);
   openRef.current = open;
   const [search, setSearch] = React.useState("");

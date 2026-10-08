@@ -262,6 +262,12 @@ import {
   TValidateHerokuConnectionCredentialsSchema
 } from "./heroku";
 import {
+  THpeIloConnection,
+  THpeIloConnectionConfig,
+  THpeIloConnectionInput,
+  TValidateHpeIloConnectionCredentialsSchema
+} from "./hpe-ilo";
+import {
   THumanitecConnection,
   THumanitecConnectionConfig,
   THumanitecConnectionInput,
@@ -437,6 +443,12 @@ import {
   TValidateSshConnectionCredentialsSchema
 } from "./ssh";
 import {
+  TStripeConnection,
+  TStripeConnectionConfig,
+  TStripeConnectionInput,
+  TValidateStripeConnectionCredentialsSchema
+} from "./stripe";
+import {
   TSupabaseConnection,
   TSupabaseConnectionConfig,
   TSupabaseConnectionInput,
@@ -466,6 +478,12 @@ import {
   TTriggerDevConnectionInput,
   TValidateTriggerDevConnectionCredentialsSchema
 } from "./trigger-dev";
+import {
+  TUltraDNSConnection,
+  TUltraDNSConnectionConfig,
+  TUltraDNSConnectionInput,
+  TValidateUltraDNSConnectionCredentialsSchema
+} from "./ultradns/ultradns-connection-types";
 import {
   TValidateVenafiConnectionCredentialsSchema,
   TVenafiConnection,
@@ -542,6 +560,7 @@ export type TAppConnection = { id: string; configuration?: TAppConnectionConfigu
   | TCloudflareConnection
   | TBitbucketConnection
   | TDNSMadeEasyConnection
+  | TUltraDNSConnection
   | TAzureDnsConnection
   | TZabbixConnection
   | TRailwayConnection
@@ -591,6 +610,8 @@ export type TAppConnection = { id: string; configuration?: TAppConnectionConfigu
   | TPowerDnsConnection
   | TSpaceliftConnection
   | TDaytonaConnection
+  | TStripeConnection
+  | THpeIloConnection
 );
 
 export type TAppConnectionRaw = NonNullable<Awaited<ReturnType<TAppConnectionDALFactory["findById"]>>>;
@@ -638,6 +659,7 @@ export type TAppConnectionInput = { id: string } & (
   | TCloudflareConnectionInput
   | TBitbucketConnectionInput
   | TDNSMadeEasyConnectionInput
+  | TUltraDNSConnectionInput
   | TAzureDnsConnectionInput
   | TZabbixConnectionInput
   | TRailwayConnectionInput
@@ -687,6 +709,8 @@ export type TAppConnectionInput = { id: string } & (
   | TPowerDnsConnectionInput
   | TSpaceliftConnectionInput
   | TDaytonaConnectionInput
+  | TStripeConnectionInput
+  | THpeIloConnectionInput
 );
 
 export type TSqlConnectionInput =
@@ -732,6 +756,8 @@ export type TValidateAppConnectionUsageByIdDTO = {
   projectId: string;
 };
 
+export type TAppConnectionScope = { projectId: string };
+
 export type TAppConnectionConfig =
   | TAwsConnectionConfig
   | TGitHubConnectionConfig
@@ -766,6 +792,7 @@ export type TAppConnectionConfig =
   | TCloudflareConnectionConfig
   | TBitbucketConnectionConfig
   | TDNSMadeEasyConnectionConfig
+  | TUltraDNSConnectionConfig
   | TAzureDnsConnectionConfig
   | TZabbixConnectionConfig
   | TRailwayConnectionConfig
@@ -814,7 +841,9 @@ export type TAppConnectionConfig =
   | TNutanixPrismCentralConnectionConfig
   | TPowerDnsConnectionConfig
   | TSpaceliftConnectionConfig
-  | TDaytonaConnectionConfig;
+  | TDaytonaConnectionConfig
+  | TStripeConnectionConfig
+  | THpeIloConnectionConfig;
 
 export type TValidateAppConnectionCredentialsSchema =
   | TValidateAwsConnectionCredentialsSchema
@@ -853,6 +882,7 @@ export type TValidateAppConnectionCredentialsSchema =
   | TValidateCloudflareConnectionCredentialsSchema
   | TValidateBitbucketConnectionCredentialsSchema
   | TValidateDNSMadeEasyConnectionCredentialsSchema
+  | TValidateUltraDNSConnectionCredentialsSchema
   | TValidateAzureDnsConnectionCredentialsSchema
   | TValidateZabbixConnectionCredentialsSchema
   | TValidateRailwayConnectionCredentialsSchema
@@ -901,7 +931,9 @@ export type TValidateAppConnectionCredentialsSchema =
   | TValidateNutanixPrismCentralConnectionCredentialsSchema
   | TValidatePowerDnsConnectionCredentialsSchema
   | TValidateSpaceliftConnectionCredentialsSchema
-  | TValidateDaytonaConnectionCredentialsSchema;
+  | TValidateDaytonaConnectionCredentialsSchema
+  | TValidateStripeConnectionCredentialsSchema
+  | TValidateHpeIloConnectionCredentialsSchema;
 
 export type TListAwsConnectionKmsKeys = {
   connectionId: string;

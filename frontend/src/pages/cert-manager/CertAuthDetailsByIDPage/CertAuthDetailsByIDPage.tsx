@@ -35,10 +35,10 @@ import {
   CaCertificatesSection,
   CaCrlsSection,
   CaDetailsSection,
-  CaDistributionPointsSection,
   CaGenerateRootCertModal,
   CaIssuerUrlSection,
   CaRenewalModal,
+  CaRevocationSection,
   CaSigningConfigSection
 } from "./components";
 
@@ -115,7 +115,7 @@ const Page = () => {
         >
           {(isAllowed) =>
             isAllowed ? (
-              <div className="mx-auto mb-6 flex w-full max-w-8xl flex-col gap-8">
+              <div className="mx-auto mb-6 flex w-full max-w-8xl flex-col">
                 <PageHeader
                   backLink={
                     cameFromProfile && search.profileId ? (
@@ -192,7 +192,7 @@ const Page = () => {
                     />
                     <CaIssuerUrlSection caId={data.id} />
                     <CaCrlsSection caId={data.id} />
-                    <CaDistributionPointsSection caId={data.id} />
+                    <CaRevocationSection caId={data.id} />
                   </div>
                 </div>
               </div>

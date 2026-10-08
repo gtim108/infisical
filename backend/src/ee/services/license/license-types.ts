@@ -36,6 +36,13 @@ export type TOrgSeatUsage = {
 export type TFeatureSet = {
   _id: null;
   slug: string | null;
+  productPlans?: {
+    productKey: string;
+    planKey: string | null;
+    status: string | null;
+    trialPlanKey: string | null;
+    trialEndsAt: string | null;
+  }[];
   // True when features are sourced from an offline (air-gapped) license; the billing UI renders a
   // read-only offline banner instead of the live billing surface.
   isOffline?: boolean;
@@ -97,6 +104,7 @@ export type TFeatureSet = {
   honeyTokens: false;
   honeyTokenLimit: 0;
   secretsBrokering: true;
+  agentVaultByoS3: false;
   secretSyncLimit: null;
   maxPamAccounts: null;
 
@@ -108,6 +116,7 @@ export type TFeatureSet = {
   // caCrl defaults on, so self-hosted OSS keeps it; the License Server's free-plan default is what
   // withholds it on cloud.
   caCrl: boolean;
+  pkiOcsp: false;
   pkiEnterpriseCaIntegrations: false;
   pkiExternalIntermediateCa: false;
   pkiDiscovery: false;

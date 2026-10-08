@@ -3,11 +3,14 @@ import {
   createContext,
   type FormEvent,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
+  useRef,
   useState
 } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { FolderIcon } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { useDebounce } from "@app/hooks";
@@ -24,6 +27,7 @@ import {
 } from "../Dialog";
 import { Field, FieldError, FieldLabel } from "../Field";
 import { Input } from "../Input";
+import { InputGroup, InputGroupAddon } from "../InputGroup";
 import { TextArea } from "../TextArea";
 import { Combobox, type ComboboxDialogCreationRenderProps, type ComboboxProps } from ".";
 
@@ -169,6 +173,36 @@ const meta = {
 
 export default meta;
 type Story = StoryObj;
+
+const InputGroupRender = () => {
+  const [value, setValue] = useState<(typeof ENVIRONMENTS)[number] | null>(ENVIRONMENTS[0]);
+
+  return (
+    <Field>
+      <FieldLabel htmlFor="combobox-input-group">Environment</FieldLabel>
+      <InputGroup>
+        <InputGroupAddon align="inline-start">
+          <FolderIcon />
+        </InputGroupAddon>
+        <Combobox
+          id="combobox-input-group"
+          variant="input-group"
+          options={ENVIRONMENTS}
+          value={value}
+          onValueChange={setValue}
+          getOptionValue={(option) => option.id}
+          getOptionLabel={(option) => option.name}
+          placeholder="Select environment..."
+          searchAriaLabel="Search environments"
+        />
+      </InputGroup>
+    </Field>
+  );
+};
+
+export const InputGroupComposition: Story = {
+  render: () => <InputGroupRender />
+};
 
 const DefaultRender = () => {
   const [value, setValue] = useState<(typeof ENVIRONMENTS)[number] | null>(null);
@@ -599,7 +633,11 @@ export const ChipLayouts: Story = {
   )
 };
 
-const NestedDialogCreationField = () => {
+const NestedDialogCreationField = ({
+  onPopupOpenChange
+}: {
+  onPopupOpenChange?: (open: boolean) => void;
+}) => {
   const [options, setOptions] = useState<string[]>([]);
   const [value, setValue] = useState<string | null>(null);
 
@@ -609,6 +647,7 @@ const NestedDialogCreationField = () => {
       <StoryCombobox
         id="combobox-nested-dialog-tag"
         modal
+        onPopupOpenChange={onPopupOpenChange}
         options={options}
         value={value}
         onValueChange={setValue}
@@ -653,13 +692,30 @@ const InDialogRender = () => {
     ORGANIZATION_ROLES[1]
   );
   const [parentSubmitCount, setParentSubmitCount] = useState(0);
+  const openPopups = useRef(new Set<string>());
+  const onPopupOpenChange = useCallback((field: string, open: boolean) => {
+    if (open) openPopups.current.add(field);
+    else openPopups.current.delete(field);
+  }, []);
+  const onRolePopupOpenChange = useCallback(
+    (open: boolean) => onPopupOpenChange("role", open),
+    [onPopupOpenChange]
+  );
+  const onTagPopupOpenChange = useCallback(
+    (open: boolean) => onPopupOpenChange("tag", open),
+    [onPopupOpenChange]
+  );
 
   return (
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline">Open Role Picker</Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent
+        onEscapeKeyDown={(event) => {
+          if (openPopups.current.size > 0) event.preventDefault();
+        }}
+      >
         <form
           className="flex flex-col gap-6"
           onSubmit={(event) => {
@@ -685,6 +741,7 @@ const InDialogRender = () => {
               searchPlaceholder="Search roles..."
               searchAriaLabel="Search organization roles"
               modal
+              onPopupOpenChange={onRolePopupOpenChange}
               renderOption={(option) => (
                 <div className="min-w-0">
                   <p className="truncate">{option.name}</p>
@@ -695,7 +752,7 @@ const InDialogRender = () => {
               )}
             />
           </Field>
-          <NestedDialogCreationField />
+          <NestedDialogCreationField onPopupOpenChange={onTagPopupOpenChange} />
           <p role="status">Parent form submits: {parentSubmitCount}</p>
         </form>
       </DialogContent>
@@ -709,7 +766,7 @@ export const InDialog: Story = {
     docs: {
       description: {
         story:
-          "Set `modal` when the combobox is rendered inside a modal Dialog. Base UI then preserves focus containment and scroll access for its body-portalled option list. A dialog creation form stops its submit event at the shared creation-dialog boundary, so React portal propagation cannot submit an ancestor form."
+          "Set `modal` inside a modal Dialog to preserve focus containment and scroll access. Use `onPopupOpenChange` to track each option popup in a caller-owned registry, and prevent the parent's `onEscapeKeyDown` only while an option popup is open. Base UI still owns option-popup dismissal; after the option popup closes, the next Escape reaches the parent. This composition does not coordinate creation-dialog admission or native exit lifetimes. The latest committed callback receives logical state changes and initial attachment, including attachment while already open. Explicit observer removal or unmount reports false; recreating an inline callback does not manufacture close/open events. Semantic owner changes require a committed detach or a React-key remount, not callback identity; setting undefined and a new callback in one batch is not a committed detach. A dialog creation form stops its submit event at the shared creation-dialog boundary, so React portal propagation cannot submit an ancestor form."
       }
     }
   },
